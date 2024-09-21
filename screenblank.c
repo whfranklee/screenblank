@@ -22,16 +22,14 @@ fd_set fds;
 int keyboard_fd, mouse_fd, touchpad_fd;
 
 int m_active_flag = 0;
-time_t m_last_tick,m_interval_second;
 char m_bl_device[64]={0};
-int m_brightness_value = 0;
+time_t m_last_tick,m_interval_second;
 pthread_mutex_t lasttick_mutex,brightness_mutex;
 	
 typedef struct{
 	char device_event[128];
 	char device_name[128];
 }device_event_name_t;
-
 
 void OSSemPend(pthread_mutex_t *mutex)
 {
@@ -286,15 +284,6 @@ int open_devpath(int *pfd, char *path)
     }
 }
 
-/*
-void reset_fdset()
-{
-    FD_ZERO(&fds);
-    FD_SET(keyboard_fd, &fds);
-    FD_SET(mouse_fd, &fds);
-    FD_SET(touchpad_fd, &fds);
-}
-*/
 
 void handle_keyboard_event(const struct input_event *piev)
 {
@@ -325,7 +314,7 @@ void handle_keyboard_event(const struct input_event *piev)
 	OSSemPost(&lasttick_mutex);
 	
 	OSSemPend(&brightness_mutex);
-	set_backlight_brightness(m_brightness_value);
+	enable_backlight_power();
 	m_active_flag = 1;
 	OSSemPost(&brightness_mutex);
 }
@@ -409,7 +398,7 @@ void handle_mouse_event(const struct input_event *piev)
 	OSSemPost(&lasttick_mutex);
 	
 	OSSemPend(&brightness_mutex);
-	set_backlight_brightness(m_brightness_value);
+	enable_backlight_power();
 	m_active_flag = 1;
 	OSSemPost(&brightness_mutex);
 }
@@ -515,7 +504,7 @@ void handle_touchpad_event(const struct input_event *piev)
 	OSSemPost(&lasttick_mutex);
 	
 	OSSemPend(&brightness_mutex);
-	set_backlight_brightness(m_brightness_value);
+	enable_backlight_power();
 	m_active_flag = 1;
 	OSSemPost(&brightness_mutex);
 }
@@ -538,7 +527,6 @@ void* screen_blanking_task(void* arg)
 			if(m_active_flag > 0)
 			{
 				OSSemPend(&brightness_mutex);
-				m_brightness_value = get_backlight_brightness();
 				disable_backlight_power();
 				m_active_flag = 0;
 				OSSemPost(&brightness_mutex);
@@ -576,7 +564,6 @@ int main(int argc, char const *argv[])
 	char keyboard_dev_path[64];
 	char event_tmp[16];
 	pthread_t backlight_thread = 0;
-	int current_brightness = 0;
 	int ret = 0;
 	
 	if(argc > 1)
@@ -599,11 +586,8 @@ int main(int argc, char const *argv[])
 	{
 		return -1;
 	}
-	
-	m_brightness_value = get_backlight_brightness();
-	current_brightness = m_brightness_value;
-	
-	if(current_brightness < 15)
+
+	if(get_backlight_brightness() < 15)
 	{
 		set_backlight_brightness(255);
 	}
